@@ -28,19 +28,19 @@ namespace WebSolenFileMover
             sourceDirectory = ConfigurationManager.AppSettings["SourceDirectory"];
             if (!Directory.Exists(sourceDirectory))
             {
-                Log("Invalid source directory", sourceDirectory, null, 0);
+                LogError("Invalid source directory", sourceDirectory, null, 0);
                 return;
             }
             destinationDirectory = ConfigurationManager.AppSettings["DestinationDirectory"];
             if (!Directory.Exists(destinationDirectory))
             {
-                Log("Invalid destination directory", destinationDirectory, null, 0);
+                LogError("Invalid destination directory", destinationDirectory, null, 0);
                 return;
             }
             string value = ConfigurationManager.AppSettings["ResetPermissionsAfterMove"];
             if (!bool.TryParse(value, out shouldResetPermissions))
             {
-                Log("Invalid value for ResetPermissionsAfterMover. Valid values are \"true\" or \"false\"", value, null, 0);
+                LogError("Invalid value for ResetPermissionsAfterMover. Valid values are \"true\" or \"false\"", value, null, 0);
                 return;
             }
             Thread thread = new Thread(delegate ()
@@ -51,7 +51,7 @@ namespace WebSolenFileMover
                 }
                 catch (Exception ex)
                 {
-                    Log("An unhandeled exception occured. Service stopped.", null, ex, 0);
+                    LogError("An unhandeled exception occured. Service stopped.", null, ex, 0);
                 }
             });
             thread.Start();
@@ -82,27 +82,6 @@ namespace WebSolenFileMover
             );
         }
 
-        private static bool CanMoveFile(string sourcePath, string destPath)
-        {
-            if (!File.Exists(sourcePath))
-            {
-                return false;
-            }
-            if (File.Exists(destPath))
-            {
-                return false;
-            }
-            try
-            {
-                using (File.Open(sourcePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            return true;
-        }
-
         private static void ResetPermissions(string path)
         {
             var fileSecurity = new FileSecurity();
@@ -110,7 +89,7 @@ namespace WebSolenFileMover
             File.SetAccessControl(path, fileSecurity);
         }
 
-        private void Log(string msg, string target, Exception ex, int id)
+        private void LogError(string msg, string target, Exception ex, int id)
         {
             if (null == eventLog)
             {
@@ -150,12 +129,20 @@ namespace WebSolenFileMover
                     }
                     catch (IOException ex)
                     {
-                        Log($"Failed to create destination directory", destPath, ex, 10);
+                        LogError("Failed to create destination directory", destPath, ex, 20);
                         continue;
                     }
                     destPath = Path.Combine(destPath, fileName);
-                    if (!CanMoveFile(sourcePath, destPath))
+                    if (File.Exists(destPath))
                     {
+                        try
+                        {
+                            File.Delete(sourcePath);
+                        }
+                        catch (IOException ex)
+                        {
+                            LogError("Failed to remove file", sourcePath, ex, 10);
+                        }
                         continue;
                     }
                     try
@@ -164,7 +151,7 @@ namespace WebSolenFileMover
                     }
                     catch (IOException ex)
                     {
-                        Log($"Failed to move file", destPath, ex, 20);
+                        LogError("Failed to move file", destPath, ex, 20);
                         continue;
                     }
                     if (shouldResetPermissions)
@@ -175,7 +162,7 @@ namespace WebSolenFileMover
                         }
                         catch (IOException ex)
                         {
-                            Log($"Failed to reset permissions", destPath, ex, 30);
+                            LogError("Failed to reset permissions", destPath, ex, 20);
                         }
                     }
                 }
