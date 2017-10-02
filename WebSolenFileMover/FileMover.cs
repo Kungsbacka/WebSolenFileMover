@@ -28,19 +28,19 @@ namespace WebSolenFileMover
             sourceDirectory = ConfigurationManager.AppSettings["SourceDirectory"];
             if (!Directory.Exists(sourceDirectory))
             {
-                LogError("Invalid source directory", sourceDirectory, null, 0);
+                LogError("Invalid source directory", sourceDirectory, null, 30);
                 return;
             }
             destinationDirectory = ConfigurationManager.AppSettings["DestinationDirectory"];
             if (!Directory.Exists(destinationDirectory))
             {
-                LogError("Invalid destination directory", destinationDirectory, null, 0);
+                LogError("Invalid destination directory", destinationDirectory, null, 30);
                 return;
             }
             string value = ConfigurationManager.AppSettings["ResetPermissionsAfterMove"];
             if (!bool.TryParse(value, out shouldResetPermissions))
             {
-                LogError("Invalid value for ResetPermissionsAfterMover. Valid values are \"true\" or \"false\"", value, null, 0);
+                LogError("Invalid value for ResetPermissionsAfterMover. Valid values are \"true\" or \"false\"", value, null, 30);
                 return;
             }
             Thread thread = new Thread(delegate ()
@@ -51,7 +51,7 @@ namespace WebSolenFileMover
                 }
                 catch (Exception ex)
                 {
-                    LogError("An unhandeled exception occured. Service stopped.", null, ex, 0);
+                    LogError("An unhandled exception occurred. Service stopped.", null, ex, 30);
                 }
             });
             thread.Start();
