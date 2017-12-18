@@ -20,14 +20,13 @@ namespace WebSolenFileMover
 
         protected override void OnStart(string[] args)
         {
-            EventLog.WriteEntry("Service started.", EventLogEntryType.Information, 1);
             fileMover.Start();
+            ExitCode = fileMover.ExitCode;
         }
 
         protected override void OnStop()
         {
             fileMover.Stop();
-            EventLog.WriteEntry("Service stopped.", EventLogEntryType.Information, 2);
         }
     }
 }
