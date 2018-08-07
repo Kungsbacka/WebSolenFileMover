@@ -5,6 +5,7 @@ using System.Configuration;
 using System.Threading;
 using System.Security.AccessControl;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace WebSolenFileMover
 {
@@ -14,6 +15,7 @@ namespace WebSolenFileMover
         private volatile bool stop;
         private string sourceDirectory;
         private string destinationDirectory;
+        private string logDirectory;
         private bool shouldResetPermissions;
         private HashSet<int> loggedTargets;
 
@@ -30,23 +32,39 @@ namespace WebSolenFileMover
             sourceDirectory = ConfigurationManager.AppSettings["SourceDirectory"];
             if (!Directory.Exists(sourceDirectory))
             {
-                LogError("Invalid source directory", sourceDirectory, null, 30);
+                LogError("Invalid source directory.", sourceDirectory, null, 30);
                 ExitCode = 1;
                 return;
             }
             destinationDirectory = ConfigurationManager.AppSettings["DestinationDirectory"];
             if (!Directory.Exists(destinationDirectory))
             {
-                LogError("Invalid destination directory", destinationDirectory, null, 30);
+                LogError("Invalid destination directory.", destinationDirectory, null, 30);
                 ExitCode = 1;
                 return;
             }
-            string value = ConfigurationManager.AppSettings["ResetPermissionsAfterMove"];
-            if (!bool.TryParse(value, out shouldResetPermissions))
+            string boolString = ConfigurationManager.AppSettings["ResetPermissionsAfterMove"];
+            if (!bool.TryParse(boolString, out shouldResetPermissions))
             {
-                LogError("Invalid value for ResetPermissionsAfterMover. Valid values are \"true\" or \"false\"", value, null, 30);
+                LogError("Invalid value for ResetPermissionsAfterMover. Valid values are \"true\" or \"false\".", boolString, null, 30);
                 ExitCode = 1;
                 return;
+            }
+            logDirectory = ConfigurationManager.AppSettings["LogDirectory"];
+            if (!string.IsNullOrEmpty(logDirectory))
+            {
+                try
+                {
+                    Directory.CreateDirectory(logDirectory);
+                    string path = Path.Combine(logDirectory, Path.GetRandomFileName());
+                    using (File.Create(path, 1, FileOptions.DeleteOnClose)) { }
+                }
+                catch (IOException ex)
+                {
+                    LogError("Failed to initialize log directory.", logDirectory, ex, 30);
+                    ExitCode = 1;
+                    return;
+                }
             }
             Thread thread = new Thread(delegate ()
             {
@@ -97,7 +115,7 @@ namespace WebSolenFileMover
 
         private void LogError(string msg, string target, Exception ex, int id)
         {
-            if (null == eventLog)
+            if (eventLog == null)
             {
                 return;
             }
@@ -109,7 +127,27 @@ namespace WebSolenFileMover
                 return;
             }
             loggedTargets.Add(hash);
-            eventLog.WriteEntry($"{msg}\r\n\r\nTarget: {target}\r\n\r\n{ex?.ToString()}", EventLogEntryType.Error, id);
+            if (string.IsNullOrEmpty(logDirectory))
+            {
+                eventLog.WriteEntry(
+                    $"{msg} To enable detailed logging, specify a logging directory in the config file.",
+                    EventLogEntryType.Error,
+                    id
+                );
+            }
+            else
+            {
+                string logPath = Path.Combine(
+                    logDirectory,
+                    DateTime.Now.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture) + ".txt"
+                );
+                File.WriteAllText(logPath, $"{msg}\r\n\r\nTarget: {target}\r\n\r\n{ex?.ToString()}");
+                eventLog.WriteEntry(
+                    $"{msg} More details found in log file {logPath}.",
+                    EventLogEntryType.Error,
+                    id
+                );
+            }
         }
 
         private void MoveFiles()
@@ -135,7 +173,7 @@ namespace WebSolenFileMover
                     }
                     catch (IOException ex)
                     {
-                        LogError("Failed to create destination directory", destPath, ex, 20);
+                        LogError("Failed to create destination directory.", destPath, ex, 20);
                         continue;
                     }
                     destPath = Path.Combine(destPath, fileName);
@@ -147,7 +185,7 @@ namespace WebSolenFileMover
                         }
                         catch (IOException ex)
                         {
-                            LogError("Failed to remove file", sourcePath, ex, 10);
+                            LogError("Failed to remove file.", sourcePath, ex, 10);
                         }
                         continue;
                     }
@@ -157,7 +195,7 @@ namespace WebSolenFileMover
                     }
                     catch (IOException ex)
                     {
-                        LogError("Failed to move file", destPath, ex, 20);
+                        LogError("Failed to move file.", destPath, ex, 20);
                         continue;
                     }
                     if (shouldResetPermissions)
@@ -168,7 +206,7 @@ namespace WebSolenFileMover
                         }
                         catch (IOException ex)
                         {
-                            LogError("Failed to reset permissions", destPath, ex, 20);
+                            LogError("Failed to reset permissions.", destPath, ex, 20);
                         }
                     }
                 }
