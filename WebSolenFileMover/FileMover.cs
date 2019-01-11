@@ -17,14 +17,13 @@ namespace WebSolenFileMover
         private string destinationDirectory;
         private string logDirectory;
         private bool shouldResetPermissions;
-        private HashSet<int> loggedTargets;
+        private Dictionary<string, int> loggedTargets = new Dictionary<string, int>();
 
         public int ExitCode { get; private set; } = 0;
 
         public FileMover(EventLog eventLog)
         {
             this.eventLog = eventLog;
-            loggedTargets = new HashSet<int>();
         }
 
         public void Start()
@@ -113,7 +112,7 @@ namespace WebSolenFileMover
             File.SetAccessControl(path, fileSecurity);
         }
 
-        private void LogError(string msg, string target, Exception ex, int id)
+        private void LogError(string msg, string target, Exception ex, int id, bool delayed = false)
         {
             if (eventLog == null)
             {
@@ -121,12 +120,39 @@ namespace WebSolenFileMover
             }
             // Check if we have logged this message before to avoid
             // unnecessary spamming of the event log if a file gets stuck.
-            int hash = $"{id}:{target}".GetHashCode();
-            if (loggedTargets.Contains(hash))
+            string thumbprint = $"{id}:{target}";
+            if (loggedTargets.TryGetValue(thumbprint, out int retries))
             {
-                return;
+                if (!delayed)
+                {
+                    return;
+                }
+                else if (retries > 0)
+                {
+                    loggedTargets[thumbprint]--;
+                    return;
+                }
+                else if (retries == 0)
+                {
+                    loggedTargets[thumbprint] = -1;
+                }
+                else
+                {
+                    return;
+                }
             }
-            loggedTargets.Add(hash);
+            else
+            {
+                if (delayed)
+                {
+                    loggedTargets.Add(thumbprint, 5);
+                    return;
+                }
+                else
+                {
+                    loggedTargets.Add(thumbprint, -1);
+                }
+            }
             if (string.IsNullOrEmpty(logDirectory))
             {
                 eventLog.WriteEntry(
@@ -195,7 +221,7 @@ namespace WebSolenFileMover
                     }
                     catch (IOException ex)
                     {
-                        LogError("Failed to move file.", destPath, ex, 20);
+                        LogError("Failed to move file.", destPath, ex, 20, true);
                         continue;
                     }
                     if (shouldResetPermissions)
