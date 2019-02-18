@@ -13,9 +13,9 @@ namespace WebSolenFileMover
             {
                 EventLog.CreateEventSource("WebSolenFileMover", "WebSolenFileMover");
             }
-            EventLog.Source = "WebSolenFileMover";
-            EventLog.Log = "WebSolenFileMover";
-            fileMover = new FileMover(EventLog);
+            this.EventLog.Source = "WebSolenFileMover";
+            this.EventLog.Log = "WebSolenFileMover";
+            fileMover = new FileMover(this.EventLog);
         }
 
         protected override void OnStart(string[] args)
