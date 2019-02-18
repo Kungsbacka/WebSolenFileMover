@@ -123,7 +123,7 @@ namespace WebSolenFileMover
             string thumbprint = $"{id}:{target}";
             if (loggedTargets.TryGetValue(thumbprint, out int retries))
             {
-                if (!delayed)
+                if (retries < 0)
                 {
                     return;
                 }
@@ -132,20 +132,13 @@ namespace WebSolenFileMover
                     loggedTargets[thumbprint]--;
                     return;
                 }
-                else if (retries == 0)
-                {
-                    loggedTargets[thumbprint] = -1;
-                }
-                else
-                {
-                    return;
-                }
+                loggedTargets[thumbprint] = -1;
             }
             else
             {
                 if (delayed)
                 {
-                    loggedTargets.Add(thumbprint, 5);
+                    loggedTargets.Add(thumbprint, 15);
                     return;
                 }
                 else
