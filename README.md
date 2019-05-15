@@ -39,4 +39,4 @@ Remove the folder C:\Program Files\WebSolenFileMover
 
 ## Logging
 
-Errors are always logged in the event log under a custom source named WebSolenFilenMover. A second logging option can (and should) be enabled by configuring a log directory in App.config. The file log contains more detailed information about the error than the event log entry. The reason for the two logs is to avoid that sensitive information ends up in the event log and potentially gets shipped to an untrusted log store.
+Errors are always logged in a custom event log named WebSolenFilenMover. A second logging option can (and should) be enabled by configuring a log directory in App.config. The file log contains more detailed information about the error than the event log entry. The reason for the two logs is to avoid that sensitive information ends up in the event log and potentially gets shipped to an untrusted log store.
