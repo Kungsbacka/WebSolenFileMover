@@ -120,8 +120,8 @@ namespace WebSolenFileMover
             }
             // Check if we have logged this message before to avoid
             // unnecessary spamming of the event log if a file gets stuck.
-            string thumbprint = $"{id}:{target}";
-            if (loggedTargets.TryGetValue(thumbprint, out int retries))
+            string key = $"{id}{target}";
+            if (loggedTargets.TryGetValue(key, out int retries))
             {
                 if (retries < 0)
                 {
@@ -129,21 +129,21 @@ namespace WebSolenFileMover
                 }
                 else if (retries > 0)
                 {
-                    loggedTargets[thumbprint]--;
+                    loggedTargets[key]--;
                     return;
                 }
-                loggedTargets[thumbprint] = -1;
+                loggedTargets[key] = -1;
             }
             else
             {
                 if (delayed)
                 {
-                    loggedTargets.Add(thumbprint, 15);
+                    loggedTargets.Add(key, 15);
                     return;
                 }
                 else
                 {
-                    loggedTargets.Add(thumbprint, -1);
+                    loggedTargets.Add(key, -1);
                 }
             }
             if (string.IsNullOrEmpty(logDirectory))
@@ -190,7 +190,7 @@ namespace WebSolenFileMover
                     {
                         Directory.CreateDirectory(destPath);
                     }
-                    catch (IOException ex)
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                     {
                         LogError("Failed to create destination directory.", destPath, ex, 20);
                         continue;
@@ -198,13 +198,14 @@ namespace WebSolenFileMover
                     destPath = Path.Combine(destPath, fileName);
                     if (File.Exists(destPath))
                     {
+                        LogError("A file with the same name already exists in the destination dirctory.", destPath, null, 40);
                         try
                         {
                             File.Delete(sourcePath);
                         }
-                        catch (IOException ex)
+                        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                         {
-                            LogError("Failed to remove file.", sourcePath, ex, 10);
+                            LogError("Failed to delete file.", sourcePath, ex, 10, true);
                         }
                         continue;
                     }
@@ -212,7 +213,7 @@ namespace WebSolenFileMover
                     {
                         File.Move(sourcePath, destPath);
                     }
-                    catch (IOException ex)
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                     {
                         LogError("Failed to move file.", destPath, ex, 20, true);
                         continue;
@@ -223,9 +224,9 @@ namespace WebSolenFileMover
                         {
                             ResetPermissions(destPath);
                         }
-                        catch (IOException ex)
+                        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                         {
-                            LogError("Failed to reset permissions.", destPath, ex, 20);
+                            LogError("Failed to reset permissions on file.", destPath, ex, 20);
                         }
                     }
                 }
