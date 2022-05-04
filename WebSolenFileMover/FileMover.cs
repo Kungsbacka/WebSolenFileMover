@@ -17,6 +17,7 @@ namespace WebSolenFileMover
         private string destinationDirectory;
         private string logDirectory;
         private bool shouldResetPermissions;
+        private string fileMask;
         private Dictionary<string, int> loggedTargets = new Dictionary<string, int>();
 
         public int ExitCode { get; private set; } = 0;
@@ -173,7 +174,8 @@ namespace WebSolenFileMover
         {
             while (!stop)
             {
-                string[] files = Directory.GetFiles(sourceDirectory, "*.pdf", SearchOption.TopDirectoryOnly);
+                fileMask = ConfigurationManager.AppSettings["FileMask"];
+                string[] files = Directory.GetFiles(sourceDirectory, fileMask, SearchOption.TopDirectoryOnly);
                 foreach (string sourcePath in files)
                 {
                     if (stop)
